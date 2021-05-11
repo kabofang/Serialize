@@ -17,7 +17,7 @@ public:
 	bool DeSerialize(int fd);
 };
 
-bool CA::Serialize(int fd)const{
+bool CA::Serialize(int fd) const{
 	if(-1 == ::write(fd,&m_i,sizeof(m_i))){
 		cout<<"Write file fail!"<<endl;
 		return false;
@@ -37,7 +37,7 @@ public://问老师static与之区别
 	bool DeSerialize(const char* pFilePath , vector<CA> &Vec);
 };
 
-bool CSerializer::Serialize(const char* pFilePath , const vector<CA> &Vec)const{
+bool CSerializer::Serialize(const char* pFilePath , const vector<CA> &Vec) const{
 	int fd;
 	if(-1 == (fd = ::open(pFilePath,O_CREAT|O_TRUNC|O_WRONLY,00600))){
 		cout << "Open file fail!" << endl;
@@ -65,7 +65,7 @@ bool CSerializer::DeSerialize(const char* pFilePath , vector<CA> &Vec){
 
 	for(;;){
 		CA Temp;
-		if(!Temp.DeSerialize(fd))
+		if(!Temp.DeSerialize(fd))//失败与文件尾的分支？
 			break;
 		Vec.push_back(Temp);
 	}
