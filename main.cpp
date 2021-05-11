@@ -1,62 +1,100 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <vector>
 using namespace std;
-class A{
+class CA{
 private:
 	int m_i;
 public:
-	A() { m_i=0; }
-	explicit A(int x) : m_i(x) {}
+	CA() { m_i=0; }
+	explicit CA(int x) : m_i(x) {}
 
 	void SetData(int x) {m_i = x;}
 	int GetData(void) { return m_i; }
 
-	bool Serialize(const char* pFilePath) const;
-	bool DeSerialize(const char* pFilePath);
+	bool Serialize(int fd) const;
+	bool DeSerialize(int fd);
 };
 
-bool A::Serialize(const char* pFilePath)const{
-	int fd;
-	if(-1 == (fd = ::open(pFilePath,O_CREAT|O_WRONLY|O_TRUNC,00600))){
-		cout<<"File open fail!"<<endl;
-		return false;
-	}
+bool CA::Serialize(int fd)const{
 	if(-1 == ::write(fd,&m_i,sizeof(m_i))){
 		cout<<"Write file fail!"<<endl;
 		return false;
 	}
+	return true;
+}
+bool CA::DeSerialize(int fd){
+	int ret = ::read(fd,&m_i,sizeof(m_i));
+	if(-1 == ret || 0 == ret)
+		return false;
+	return true;
+}
+
+class CSerializer{
+public://问老师static与之区别
+	bool Serialize(const char* pFilePath , const vector<CA> &Vec) const;
+	bool DeSerialize(const char* pFilePath , vector<CA> &Vec);
+};
+
+bool CSerializer::Serialize(const char* pFilePath , const vector<CA> &Vec)const{
+	int fd;
+	if(-1 == (fd = ::open(pFilePath,O_CREAT|O_TRUNC|O_WRONLY,00600))){
+		cout << "Open file fail!" << endl;
+		return false;
+	}
+
+	for(int i = 0 ; i < Vec.size() ; i++)
+		if(!Vec[i].Serialize(fd)){
+			cout << "Serialize fail!" << endl;
+			return false;
+		}
+
 	if(-1 == ::close(fd)){
-		cout<<"Close file fail!"<<endl;
+		cout << "Close file fail!" << endl;
 		return false;
 	}
 	return true;
 }
-bool A::DeSerialize(const char* pFilePath){
+bool CSerializer::DeSerialize(const char* pFilePath , vector<CA> &Vec){	
 	int fd;
 	if(-1 == (fd = ::open(pFilePath,O_RDONLY))){
-		cout<<"File open fail!"<<endl;
+		cout << "Open file fail!" << endl;
 		return false;
 	}
-	if(-1 == ::read(fd,&m_i,sizeof(m_i))){
-		cout<<"Read file fail!"<<endl;
-		return false;
+
+	for(;;){
+		CA Temp;
+		if(!Temp.DeSerialize(fd))
+			break;
+		Vec.push_back(Temp);
 	}
+
 	if(-1 == ::close(fd)){
-		cout<<"Close file fail!"<<endl;
+		cout << "Close file fail!" << endl;
 		return false;
 	}
 	return true;
 }
 
+
 int main(int argc , char* argv[]){
-	A a1(5);
-	A a2;
+	CA a[10];
+	vector<CA> VecA;
+	vector<CA> Vecdst;
 
-	a1.Serialize("a.txt");
-	a2.DeSerialize("a.txt");
+	for(int i = 0 ; i < 10 ; i++){
+		a[i].SetData(2*i);
+		VecA.push_back(a[i]);
+	}
 
-	cout<<a2.GetData()<<endl;
+	CSerializer Ser;
+
+	Ser.Serialize("a.txt",VecA);
+	Ser.DeSerialize("a.txt",Vecdst);
+
+	for(int i = 0 ; i < Vecdst.size() ; i++)
+		cout<<Vecdst[i].GetData()<<endl;
 
 	return 0;
 }
