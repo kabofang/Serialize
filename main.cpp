@@ -206,13 +206,13 @@ int main(int argc , char* argv[]){
 	Ser.DeSerialize("a.txt",Vecdst);
 	
 	for(int i = 0; i < Vecdst.size() ; i++){
-		CA* pa = dynamic_cast<CA *>(Vecdst[i]);
+		CA* pa = dynamic_cast<CA*>(Vecdst[i]);
 		if(pa != NULL)
 			cout<<pa->GetData()<<endl;
-		CB* pb = dynamic_cast<CB *>(Vecdst[i]);
+		CB* pb = dynamic_cast<CB*>(Vecdst[i]);
 		if(pb != NULL)
 			cout<<pb->GetData()<<endl;
-		CC* pc = dynamic_cast<CC *>(Vecdst[i]);
+		CC* pc = dynamic_cast<CC*>(Vecdst[i]);
 		if(pc != NULL)
 			cout<<pc->GetData()<<endl;
 	
