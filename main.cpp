@@ -2,11 +2,69 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <vector>
+#include <string.h>
 using namespace std;
+class CStoreStrategy{
+public: 
+	virtual bool Store(void *arg,int len) = 0;
+	virtual bool Load(void *arg,int *plen) = 0;
+};
+class CStoreJsonFileStrategy:public CStoreStrategy{
+public:
+	bool Store(void *arg,int len);
+	bool Load(void *arg,int *plen);
+};
+class CStoreFileStrategy:public CStoreStrategy{
+private:
+	char *pFilePath;
+public: 
+	bool Store(void *arg,int len);
+	bool Load(void *arg,int *plen); 
+	CStoreFileStrategy(const char*);
+};
+CStoreFileStrategy::CStoreFileStrategy(const char*p){
+	pFilePath = new char[strlen(p)+1];
+	memmove(pFilePath,p,strlen(p)+1);
+	return ;
+}
+bool CStoreFileStrategy::Store(void *arg,int len){
+	char *pbuf = (char*)arg;
+	int fd;
+	if(-1 == (fd = ::open(pFilePath,O_CREAT|O_TRUNC|O_WRONLY,00600))){
+		cout << "Open file fail!" << endl;
+		return false;
+	}
+	::write(fd,pbuf,len);
+	if(-1 == ::close(fd)){
+		cout << "Close file fail!" << endl;
+		return false;
+	}
+	return true;
+}
+bool CStoreFileStrategy::Load(void *arg,int *plen){
+	char **ppbuf = (char**)arg;
+	int fd;
+	if(-1 == (fd = ::open(pFilePath,O_RDONLY))){
+		cout << "Open file fail!" << endl;
+		return false;
+	}
+	int filesize = lseek(fd,0,SEEK_END);
+	*plen = filesize;
+	*ppbuf = (char*)malloc(filesize);
+	lseek(fd,0,SEEK_SET);
+	::read(fd,*ppbuf,filesize);
+	if(-1 == ::close(fd)){
+		cout << "Close file fail!" << endl;
+		return false;
+	}
+	return true;
+}
+
+
 class CSerializable{
 public:
-	virtual bool Serialize(int fd) const = 0;
-	virtual CSerializable* DeSerialize(int fd) = 0;
+	virtual int Serialize(char *pbuf) const = 0;
+	virtual CSerializable* DeSerialize(char *pbuf,int *plen) = 0;
 	virtual bool GetType(int& type) = 0;
 };
 
@@ -20,10 +78,10 @@ public:
 	explicit CA(int x) : m_i(x) {}
 	
 	void SetData(int x) {m_i = x;}
-	int GetData(void) { return m_i; }
+	int GetData(void) const{ return m_i; }
 	
-	bool Serialize(int fd) const;
-	pCS DeSerialize(int fd);
+	int Serialize(char *pbuf) const;
+	pCS DeSerialize(char *pbuf,int *plen);
 
 	bool GetType(int& type);
 };
@@ -31,142 +89,108 @@ bool CA::GetType(int& type){
 	type = 0;
 	return true;
 }
-bool CA::Serialize(int fd) const{
-	if(-1 == ::write(fd,&m_i,sizeof(m_i))){
-		cout<<"Write file fail!"<<endl;
-		return false;
-	}
-	return true;
+int CA::Serialize(char *pbuf) const{
+	memmove(pbuf,(char*)this+8,sizeof(CA)-8);
+	return sizeof(CA) - 8;
 }
-pCS CA::DeSerialize(int fd){
+pCS CA::DeSerialize(char* pbuf,int *plen){
+	*plen = sizeof(CA) -8;
 	CA* pTemp = new CA;
-	int ret = ::read(fd,&(pTemp->m_i),sizeof(int));
-	if(-1 == ret || 0 == ret)
-		return NULL;
+	memmove((char*)pTemp+8,pbuf,sizeof(CA)-8);
 	return pTemp;
 }
-
 class CB : public CSerializable{
 private:
 	double m_d;
 public:
 	CB() { m_d=0;}
 	explicit CB(double x) : m_d(x) {}
-
+	
 	void SetData(double x) {m_d = x;}
-	double GetData(void) { return m_d; }
+	double GetData(void) const{ return m_d; }
+	
+	int Serialize(char *pbuf) const;
+	pCS DeSerialize(char *pbuf,int *plen);
 
-	bool Serialize(int fd) const;
-	pCS DeSerialize(int fd);
 	bool GetType(int& type);
 };
 bool CB::GetType(int& type){
 	type = 1;
 	return true;
 }
-bool CB::Serialize(int fd) const{
-	if(-1 == ::write(fd,&m_d,sizeof(m_d))){
-		cout<<"Write file fail!"<<endl;
-		return false;
-	}
-	return true;
+int CB::Serialize(char *pbuf) const{
+	memmove(pbuf,(char*)this+8,sizeof(CB)-8);
+	return sizeof(CB) - 8;
 }
-pCS CB::DeSerialize(int fd){
+pCS CB::DeSerialize(char* pbuf,int *plen){
+	*plen = sizeof(CB) -8;
 	CB* pTemp = new CB;
-	int ret = ::read(fd,&(pTemp->m_d),sizeof(m_d));
-	if(-1 == ret || 0 == ret)
-		return NULL;
+	memmove((char*)pTemp+8,pbuf,sizeof(CB)-8);
 	return pTemp;
 }
 
-
-class CC : public CSerializable{
-private:
-	int m_i;
-public:
-	CC() { m_i=0;}
-	explicit CC(int x) : m_i(x) {}
-
-	void SetData(int x) {m_i = x;}
-	double GetData(void) { return m_i; }
-
-	bool Serialize(int fd) const;
-	pCS DeSerialize(int fd);
-	bool GetType(int& type);
-};
-bool CC::GetType(int& type){
-	type = 2;
-	return true;
-}
-
-bool CC::Serialize(int fd) const{
-	if(-1 == ::write(fd,&m_i,sizeof(m_i))){
-		cout<<"Write file fail!"<<endl;
-		return false;
-	}
-	return true;
-}
-pCS CC::DeSerialize(int fd){
-	CC* pTemp = new CC;
-	int ret = ::read(fd,&(pTemp->m_i),sizeof(m_i));
-	if(-1 == ret || 0 == ret)
-		return NULL;
-	return pTemp;
-}
-
-class CSerializer{
+class CStorage{
 private:
 	vector<pCS> m_Vecreg;
-public://问老师static与之区别
+public:
 	bool Serialize(const char* pFilePath , const vector<pCS> &Vec) const;
 	bool DeSerialize(const char* pFilePath , vector<pCS> &Vec);
 	bool Register(pCS p);
 };
 
-bool CSerializer::Serialize(const char* pFilePath , const vector<pCS> &Vec) const{
-	int fd;
-	if(-1 == (fd = ::open(pFilePath,O_CREAT|O_TRUNC|O_WRONLY,00600))){
-		cout << "Open file fail!" << endl;
-		return false;
-	}
-	for(int i = 0 ; i < Vec.size() ; i++){
+class CSerializer:public CStorage{
+private:
+	vector<pCS> m_Vecreg;
+	char* m_StrTemp;
+	CStoreStrategy *m_Strategy;
+public:
+	bool Serialize(const vector<pCS> &Vec) const;
+	bool DeSerialize(vector<pCS> &Vec);
+	bool Register(pCS p);
+	
+	CSerializer(CStoreStrategy *p):m_Strategy(p){}
+};
+
+bool CSerializer::Serialize(const vector<pCS> &Vec) const{
+	char buf[1024];
+	int len = 0;
+	char* pbuf = buf;
+	memset(buf,0,1024);
+
+	for(int i = 0 ;i < Vec.size(); i++){
 		int type;
 		Vec[i]->GetType(type);
-		write(fd,&type,sizeof(type));
-		Vec[i]->Serialize(fd);
+		memmove(pbuf,&type,sizeof(type));
+		len += sizeof(type);
+		pbuf += sizeof(type);
+		int templen =  Vec[i]->Serialize(pbuf);
+		len += templen;
+		pbuf += templen;
 	}
-
-	if(-1 == ::close(fd)){
-		cout << "Close file fail!" << endl;
-		return false;
-	}
+	m_Strategy->Store(buf,len);
 	return true;
 }
-bool CSerializer::DeSerialize(const char* pFilePath , vector<pCS> &Vec){	
-	int fd;
-	if(-1 == (fd = ::open(pFilePath,O_RDONLY))){
-		cout << "Open file fail!" << endl;
-		return false;
-	}
-
-	for(;;){
+bool CSerializer::DeSerialize(vector<pCS> &Vec){	
+	char* pbuf;
+	int originlen = 0;
+	int len = 0;
+	int Delen;
+	m_Strategy->Load(&pbuf,&originlen);
+	for(;len<originlen;){
 		int type1,type2;
 		pCS pTemp;
-		if(0 == read(fd,&type1,sizeof(type1)))
-			break;
+		memmove(&type1,pbuf,sizeof(type1));
+		pbuf += sizeof(type1);
+		len += sizeof(type1);
 		for(int i = 0;i < m_Vecreg.size();i++){
 			m_Vecreg[i]->GetType(type2);
 			if(type1 == type2){
-				pTemp = m_Vecreg[i]->DeSerialize(fd);
+				pTemp = m_Vecreg[i]->DeSerialize(pbuf,&Delen);
+				pbuf += Delen;
+				len += Delen;
 				Vec.push_back(pTemp);
 			}
 		}
-		
-	}
-
-	if(-1 == ::close(fd)){
-		cout << "Close file fail!" << endl;
-		return false;
 	}
 
 	return true;
@@ -180,30 +204,25 @@ bool CSerializer::Register(pCS p){
 int main(int argc , char* argv[]){
 	vector<pCS> VecSrc;
 	vector<pCS> Vecdst;
-	
+
 	CA a;
 	CB b;
-	CC c;
-
 
 	pCS pa1 = new CA(5);
-	pCS pb1 = new CB(6);
-	pCS pc1 = new CC(7);
+	pCS pb1 = new CB(3.14);
 	
 	
 	VecSrc.push_back(pa1);
 	VecSrc.push_back(pb1);
-	VecSrc.push_back(pc1);
 	
-
-	CSerializer Ser;
+	//CSerializer Ser(new CStoreFileStrategy("a.txt"));
+	CSerializer Ser(new CStoreFileStrategy("a.json"));
 
 	Ser.Register(&a);
 	Ser.Register(&b);
-	Ser.Register(&c);
 
-	Ser.Serialize("a.txt",VecSrc);
-	Ser.DeSerialize("a.txt",Vecdst);
+	Ser.Serialize(VecSrc);
+	Ser.DeSerialize(Vecdst);
 	
 	for(int i = 0; i < Vecdst.size() ; i++){
 		CA* pa = dynamic_cast<CA*>(Vecdst[i]);
@@ -212,10 +231,6 @@ int main(int argc , char* argv[]){
 		CB* pb = dynamic_cast<CB*>(Vecdst[i]);
 		if(pb != NULL)
 			cout<<pb->GetData()<<endl;
-		CC* pc = dynamic_cast<CC*>(Vecdst[i]);
-		if(pc != NULL)
-			cout<<pc->GetData()<<endl;
-	
 	}
 		
 	return 0;
