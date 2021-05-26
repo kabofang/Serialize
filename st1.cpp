@@ -3,7 +3,12 @@
 #include <fcntl.h>
 #include <vector>
 #include <string.h>
+#include <jsoncpp/json/json.h>
 using namespace std;
+struct TestData{
+	int st_i;
+	double st_d;
+};
 class CStoreStrategy{
 public: 
 	virtual bool Store(void *arg,int len) = 0;
@@ -75,10 +80,9 @@ private:
 	int m_i;
 	double m_d1;
 	double m_d2;
+	TestData m_st;
 public:
-	CA() { m_i=m_d1=m_d2=0;}
-	explicit CA(int x,double y,double z) : m_i(x),m_d1(y),m_d2(z) {}
-	
+	explicit CA(int x=0,double y=0,double z=0,int v=0,double w=0);
 	//void SetData(int x) {m_i = x;}
 	void DispData(void) const;
 	
@@ -87,8 +91,16 @@ public:
 
 	bool GetType(int& type);
 };
+CA::CA(int x,double y,double z,int v,double w){
+	 m_i = x;
+	 m_d1 = y;
+	 m_d2 = z;
+	 m_st.st_i = v;
+	 m_st.st_d = w;
+}
+
 void CA::DispData(void) const{
-	cout<<m_i<<"\t"<<m_d1<<"\t"<<m_d2<<endl;
+	cout<<m_i<<"\t"<<m_d1<<"\t"<<m_d2<<"\t"<<m_st.st_i<<"\t"<<m_st.st_d<<endl;
 }
 	
 bool CA::GetType(int& type){
@@ -96,25 +108,45 @@ bool CA::GetType(int& type){
 	return true;
 }
 int CA::Serialize(char *pbuf) const{
-	memmove(pbuf,(char*)this+8,sizeof(CA)-8);
-	return sizeof(CA) - 8;
+	Json::Value CAobj;
+	CAobj["m_i"] = Json::Value(m_i);
+	CAobj["m_d1"] = Json::Value(m_d1);
+	CAobj["m_d2"] = Json::Value(m_d2);
+	Json::Value St;
+	St["st_i"] = Json::Value(m_st.st_i);
+	St["st_d"] = Json::Value(m_st.st_d);
+	CAobj["m_st"] = Json::Value(St);
+	Json::StyledWriter sw;
+	string strtemp = sw.write(CAobj);
+	int len = strtemp.size();
+	strtemp.copy(pbuf,len,0);
+	return len;
 }
 pCS CA::DeSerialize(char* pbuf,int *plen){
-	*plen = sizeof(CA) -8;
-	CA* pTemp = new CA;
-	memmove((char*)pTemp+8,pbuf,sizeof(CA)-8);
+	Json::Reader rd;
+	Json::Value CAobj;
+	string temp = pbuf;
+	rd.parse(temp,CAobj);
+	int m_i = CAobj["m_i"].asInt();
+	double m_d1 = CAobj["m_d1"].asDouble();
+	double m_d2 = CAobj["m_d2"].asDouble();
+	int m_st_st_i = CAobj["m_st"]["st_i"].asInt();
+	double m_st_st_d = CAobj["m_st"]["st_d"].asInt();
+	Json::StyledWriter sw;
+	string tt = sw.write(CAobj);
+	*plen = tt.size();
+	CA* pTemp = new CA(m_i,m_d1,m_d2,m_st_st_i,m_st_st_d);
 	return pTemp;
 }
+
 class CB : public CSerializable{
 private:
 	int m_i1;
 	int m_i2;
 	double m_d;
+	TestData m_st;
 public:
-	CB() { m_d=m_i1=m_i2=0;}
-	explicit CB(int x,int y,double z) : m_i1(x),m_i2(y),m_d(z) {}
-	
-	//void SetData(double x,) {m_d = x;}
+	explicit CB(int x=0,int y=0,double z=0,int v=0,double w=0);
 	void DispData(void) const;
 	
 	int Serialize(char *pbuf) const;
@@ -122,23 +154,55 @@ public:
 
 	bool GetType(int& type);
 };
-void CB::DispData(void) const{
-	cout<<m_i1<<"\t"<<m_i2<<"\t"<<m_d<<endl;
+CB::CB(int x,int y,double z,int v,double w){
+	 m_i1 = x;
+	 m_i2 = y;
+	 m_d = z;
+	 m_st.st_i = v;
+	 m_st.st_d = w;
 }
+
+void CB::DispData(void) const{
+	cout<<m_i1<<"\t"<<m_i2<<"\t"<<m_d<<"\t"<<m_st.st_i<<"\t"<<m_st.st_d<<endl;
+}
+	
 bool CB::GetType(int& type){
 	type = 1;
 	return true;
 }
 int CB::Serialize(char *pbuf) const{
-	memmove(pbuf,(char*)this+8,sizeof(CB)-8);
-	return sizeof(CB) - 8;
+	Json::Value CBobj;
+	CBobj["m_i1"] = Json::Value(m_i1);
+	CBobj["m_i2"] = Json::Value(m_i2);
+	CBobj["m_d"] = Json::Value(m_d);
+	Json::Value St;
+	St["st_i"] = Json::Value(m_st.st_i);
+	St["st_d"] = Json::Value(m_st.st_d);
+	CBobj["m_st"] = Json::Value(St);
+	Json::StyledWriter sw;
+	string strtemp = sw.write(CBobj);
+	//const char *charptemp = strtemp.c_str();
+	int len = strtemp.size();
+	strtemp.copy(pbuf,len,0);
+	return len;
 }
 pCS CB::DeSerialize(char* pbuf,int *plen){
-	*plen = sizeof(CB) -8;
-	CB* pTemp = new CB;
-	memmove((char*)pTemp+8,pbuf,sizeof(CB)-8);
+	Json::Reader rd;
+	Json::Value CBobj;
+	string temp = pbuf;
+	rd.parse(temp,CBobj);
+	int m_i1 = CBobj["m_i1"].asInt();
+	int m_i2 = CBobj["m_i2"].asDouble();
+	double m_d = CBobj["m_d"].asDouble();
+	int m_st_st_i = CBobj["m_st"]["st_i"].asInt();
+	double m_st_st_d = CBobj["m_st"]["st_d"].asInt();
+	Json::StyledWriter sw;
+	string tt = sw.write(CBobj);
+	*plen = tt.size();
+	CB* pTemp = new CB(m_i1,m_i2,m_d,m_st_st_i,m_st_st_d);
 	return pTemp;
 }
+
 
 class CStorage{
 private:
@@ -171,9 +235,17 @@ bool CSerializer::Serialize(const vector<pCS> &Vec) const{
 	for(int i = 0 ;i < Vec.size(); i++){
 		int type;
 		Vec[i]->GetType(type);
-		memmove(pbuf,&type,sizeof(type));
-		len += sizeof(type);
-		pbuf += sizeof(type);
+
+		Json::Value typej;
+		typej["type"] = Json::Value(type);
+		Json::StyledWriter sw;
+		string temp = sw.write(typej);
+		//const char* charpstr = temp.c_str();
+		int jsonlen = temp.size();
+		temp.copy(pbuf,jsonlen,0);
+		len += jsonlen;
+		pbuf += jsonlen;
+
 		int templen =  Vec[i]->Serialize(pbuf);
 		len += templen;
 		pbuf += templen;
@@ -190,9 +262,16 @@ bool CSerializer::DeSerialize(vector<pCS> &Vec){
 	for(;len<originlen;){
 		int type1,type2;
 		pCS pTemp;
-		memmove(&type1,pbuf,sizeof(type1));
-		pbuf += sizeof(type1);
-		len += sizeof(type1);
+		Json::Value typej;
+		Json::Reader rd;
+		string strtemp = pbuf;
+		rd.parse(strtemp,typej);
+		type1 = typej["type"].asInt();
+		Json::StyledWriter sw;
+		string jstype = sw.write(typej);
+		int templen = jstype.size();
+		pbuf += templen;
+		len += templen;
 		for(int i = 0;i < m_Vecreg.size();i++){
 			m_Vecreg[i]->GetType(type2);
 			if(type1 == type2){
@@ -219,14 +298,16 @@ int main(int argc , char* argv[]){
 	CA a;
 	CB b;
 
-	pCS pa1 = new CA(5,1.1,1.2);
-	pCS pb1 = new CB(6,7,3.14);
-	
-	
+	pCS pa1 = new CA(5,1.1,1.2,1,1);
+	pCS pb1 = new CB(6,7,3.14,1,5);
+	pCS pa2 = new CA(5,1.1,1.2,1,1);
+	pCS pb2 = new CB(6,7,3.14,1,5);
+
 	VecSrc.push_back(pa1);
 	VecSrc.push_back(pb1);
-	
-	//CSerializer Ser(new CStoreFileStrategy("a.txt"));
+	VecSrc.push_back(pa2);
+	VecSrc.push_back(pb2);
+
 	CSerializer Ser(new CStoreFileStrategy("a.json"));
 
 	Ser.Register(&a);
